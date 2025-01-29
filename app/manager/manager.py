@@ -54,7 +54,15 @@ class CommandManager:
         for task_name, (task, pipe, queue, event) in self.__handler.items():
             tasks_queue.append(asyncio.create_task(task(pipe)))
 
-        async def schedule_manager():
+        async def schedule_pipeline_trigger():
+            while True:
+                for task_name, (task, pipe, queue, event) in self.__handler.items():
+                    if len(queue) > 0:
+                        event.set()
+
+                    await asyncio.sleep(0.01)
+
+        async def schedule_pipeline_queue():
             while True:
                 command_pipe = await read_model(self.__websocket, CommandPipeline)
 
@@ -62,8 +70,8 @@ class CommandManager:
                     task, pipe, queue, event = results
 
                     queue.append(command_pipe.data)
-                    event.set()
 
-        tasks_queue.append(asyncio.create_task(schedule_manager()))
+        tasks_queue.append(asyncio.create_task(schedule_pipeline_queue()))
+        tasks_queue.append(asyncio.create_task(schedule_pipeline_trigger()))
 
         await asyncio.gather(*tasks_queue)

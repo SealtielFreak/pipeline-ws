@@ -37,13 +37,17 @@ async def websocket(websocket: WebSocket, pipeline: DependPipelineSession):
             await pipeline.send(f"<<A>>: {echo}")
 
     async def task_b(pipeline: PipelineBuffer):
+        await websocket.send_text("Hello World from B!")
+
         while True:
-            await websocket.send_text("Hello World from B!")
-            await asyncio.sleep(5)
+            echo = await pipeline.receive()
+            await pipeline.send(f"<<B>>: {echo}")
+
+            await asyncio.sleep(3)
 
     async def task_c(pipeline: PipelineBuffer):
         while True:
-            await websocket.send_text("Hello World from C!")
+            await pipeline.send("Hello World from C!")
             await asyncio.sleep(5)
 
     async with pipeline.session(websocket) as session:
