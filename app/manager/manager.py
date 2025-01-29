@@ -29,7 +29,7 @@ class CommandManager:
     def websocket(self):
         return self.__websocket
 
-    def attach(self, name):
+    def attach(self, name: str):
         async def task(func):
             await func()
 
@@ -37,7 +37,7 @@ class CommandManager:
 
         return task
 
-    def add(self, name, task):
+    def add(self, name: str, task):
         event = asyncio.Event()
         queue = collections.deque()
 
@@ -49,10 +49,10 @@ class CommandManager:
         )
 
     async def schedule(self):
-        tasks_queue = []
+        all_tasks_queue = []
 
         for task_name, (task, pipe, queue, event) in self.__handler.items():
-            tasks_queue.append(asyncio.create_task(task(pipe)))
+            all_tasks_queue.append(asyncio.create_task(task(pipe)))
 
         async def schedule_pipeline_trigger():
             while True:
@@ -71,7 +71,7 @@ class CommandManager:
 
                     queue.append(command_pipe.data)
 
-        tasks_queue.append(asyncio.create_task(schedule_pipeline_queue()))
-        tasks_queue.append(asyncio.create_task(schedule_pipeline_trigger()))
+        all_tasks_queue.append(asyncio.create_task(schedule_pipeline_queue()))
+        all_tasks_queue.append(asyncio.create_task(schedule_pipeline_trigger()))
 
-        await asyncio.gather(*tasks_queue)
+        await asyncio.gather(*all_tasks_queue)
