@@ -29,6 +29,15 @@ async def say_hello(name: str):
 
 @app.websocket("/pipeline")
 async def websocket(websocket: WebSocket, pipeline: DependPipelineSession):
+    async def startup_trigger(pipeline: PipelineBuffer):
+        await pipeline.send(f"Startup!")
+
+        data = await pipeline.receive()
+
+        await pipeline.send(f"Startup: {data}")
+
+        return True
+
     async def task_a(pipeline: PipelineBuffer):
         await pipeline.send(f"Hello World from A!")
 
@@ -51,6 +60,7 @@ async def websocket(websocket: WebSocket, pipeline: DependPipelineSession):
             await asyncio.sleep(5)
 
     async with pipeline.session(websocket) as session:
+        session.set_startup(startup_trigger)
         session.add("A", task_a)
         session.add("B", task_b)
         session.add("C", task_c)

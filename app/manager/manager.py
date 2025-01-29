@@ -1,5 +1,6 @@
 import asyncio
 import collections
+import contextlib
 import typing
 
 from starlette.websockets import WebSocket
@@ -9,6 +10,8 @@ from app.schemes import CommandPipeline
 
 C = typing.TypeVar("C")
 
+Trigger = typing.Callable[[PipelineBuffer], typing.Awaitable[bool]]
+Task = typing.Callable[[PipelineBuffer], typing.Awaitable[None]]
 
 async def send_model(websocket: WebSocket, model: C):
     await websocket.send_json(model.model_dump())
@@ -24,6 +27,13 @@ class CommandManager:
     def __init__(self, websocket: WebSocket):
         self.__websocket = websocket
         self.__handler = {}
+        self.__trigger_handler = {
+            "startup": self.__generate_handler("startup"),
+            "finished": self.__generate_handler("finished"),
+        }
+        self.__event_trigger = {
+            "startup": asyncio.Event()
+        }
 
     @property
     def websocket(self):
@@ -37,22 +47,43 @@ class CommandManager:
 
         return task
 
-    def add(self, name: str, task):
-        event = asyncio.Event()
-        queue = collections.deque()
+    def __generate_handler(self, name: str, task: typing.Optional[Trigger | Task] = None):
+        async def __empty_trigger(pipeline: PipelineBuffer) -> bool:
+            return True
 
-        self.__handler[name] = (
+        if task is None:
+            task = __empty_trigger
+
+        _event = asyncio.Event()
+        _queue = collections.deque()
+        _pipe = PipelineBuffer(name, self.websocket, _queue, _event)
+
+        return (
             task,
-            PipelineBuffer(name, self.websocket, queue, event),
-            queue,
-            event
+            _pipe,
+            _queue,
+            _event
         )
+
+    def set_startup(self, task: Trigger):
+        self.__trigger_handler["startup"] = self.__generate_handler("startup", task)
+
+    def set_finished(self, task: Trigger):
+        self.__trigger_handler["finished"] = self.__generate_handler("finished", task)
+
+    def add(self, name: str, task: Task):
+        async def task_events_trigger(pipeline):
+            if event := self.__event_trigger.get("startup"):
+                print("Waiting")
+                await event.wait()
+                print("Startup")
+
+            await task(pipeline)
+
+        self.__handler[name] = self.__generate_handler(name, task_events_trigger)
 
     async def schedule(self):
         all_tasks_queue = []
-
-        for task_name, (task, pipe, queue, event) in self.__handler.items():
-            all_tasks_queue.append(asyncio.create_task(task(pipe)))
 
         async def schedule_pipeline_trigger():
             while True:
@@ -74,4 +105,26 @@ class CommandManager:
         all_tasks_queue.append(asyncio.create_task(schedule_pipeline_queue()))
         all_tasks_queue.append(asyncio.create_task(schedule_pipeline_trigger()))
 
+        for task_name, (task, pipe, queue, event) in self.__handler.items():
+            all_tasks_queue.append(asyncio.create_task(task(pipe)))
+
         await asyncio.gather(*all_tasks_queue)
+        await self.__schedule_triggers_manager()
+
+    async def __execute_trigger(self, name: str):
+        result = self.__trigger_handler.get(name)
+
+        if not result:
+            return False
+
+        task, pipe, queue, event = result
+        return await task(pipe)
+
+    async def __schedule_triggers_manager(self):
+        startup_status = await self.__execute_trigger("startup")
+
+        if startup_status:
+            if event := self.__event_trigger.get("startup"):
+                event.set()
+
+        await self.__execute_trigger("finished")

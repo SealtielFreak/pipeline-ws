@@ -5,7 +5,7 @@ from starlette.websockets import WebSocket
 
 
 class PipelineBuffer:
-    def __init__(self, name, websocket: WebSocket, queue: collections.deque, event: asyncio.Event):
+    def __init__(self, name: str, websocket: WebSocket, queue: collections.deque, event: asyncio.Event):
         self.__name = name
         self.__websocket = websocket
         self.__queue = queue
