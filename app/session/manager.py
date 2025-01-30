@@ -5,7 +5,7 @@ import typing
 
 from starlette.websockets import WebSocket
 
-from app.manager.pipeline import PipelineBuffer
+from app.session.pipeline import PipelineBuffer
 from app.schemes import CommandPipeline
 
 C = typing.TypeVar("C")

@@ -7,7 +7,7 @@ from app.depends import DependPipelineSession
 from app.handler import response_http_exception_handler, http_exception_handler, global_exception_handler, \
     invalid_credentials_handler
 from app.handler.exception import ResponseException
-from app.manager.pipeline import PipelineBuffer
+from app.session.pipeline import PipelineBuffer
 
 app = FastAPI()
 

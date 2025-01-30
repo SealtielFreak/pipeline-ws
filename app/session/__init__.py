@@ -6,7 +6,7 @@ from starlette.exceptions import HTTPException
 from starlette.websockets import WebSocket, WebSocketDisconnect
 
 from app.handler.exception import ResponseException
-from app.manager.manager import CommandManager
+from app.session.manager import CommandManager
 from app.schemes import MessageResponse
 from app.types import StatusQuery
 
