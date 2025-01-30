@@ -27,17 +27,8 @@ async def say_hello(name: str):
     return {"message": f"Hello {name}"}
 
 
-@app.websocket("/pipeline")
-async def websocket(websocket: WebSocket, pipeline: DependPipelineSession):
-    async def startup_trigger(pipeline: PipelineBuffer):
-        await pipeline.send(f"Startup!")
-
-        data = await pipeline.receive()
-
-        await pipeline.send(f"Startup: {data}")
-
-        return True
-
+@app.websocket("/demo")
+async def pipeline_demo(websocket: WebSocket, pipeline: DependPipelineSession):
     async def task_a(pipeline: PipelineBuffer):
         await pipeline.send(f"Hello World from A!")
 
@@ -63,5 +54,48 @@ async def websocket(websocket: WebSocket, pipeline: DependPipelineSession):
         session.add("A", task_a)
         session.add("B", task_b)
         session.add("C", task_c)
+
+        await session.schedule()
+
+
+@app.websocket("/auth")
+async def pipeline_demo_auth(websocket: WebSocket, pipeline: DependPipelineSession):
+    event_auth_credential = asyncio.Event()
+
+    async def credentials(pipeline: PipelineBuffer):
+        await pipeline.send(f"Waiting credentials...")
+
+        data = await pipeline.receive()
+
+        event_auth_credential.set()
+
+        await pipeline.send(f"Credentials received: {data}")
+
+        return True
+
+    async def task_a(pipeline: PipelineBuffer):
+        await event_auth_credential.wait()
+        await pipeline.send(f"Hello World from A!")
+
+        while True:
+            echo = await pipeline.receive()
+            await pipeline.send(f"<<A>>: {echo}")
+
+    async def task_b(pipeline: PipelineBuffer):
+        await event_auth_credential.wait()
+        await websocket.send_text("Hello World from B!")
+
+        while True:
+            echo = await pipeline.receive()
+            await pipeline.send(f"<<B>>: {echo}")
+
+            await asyncio.sleep(3)
+
+
+    async with pipeline.session(websocket) as session:
+        session.add("credentials", credentials)
+
+        session.add("A", task_a)
+        session.add("B", task_b)
 
         await session.schedule()
