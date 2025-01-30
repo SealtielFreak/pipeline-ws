@@ -19,3 +19,6 @@ class PipelineBuffer:
 
     async def send(self, data):
         await self.__websocket.send_text(data)
+
+    async def clear(self):
+        self.__queue.clear()
