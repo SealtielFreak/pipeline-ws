@@ -50,6 +50,7 @@ class TriggerTask:
 
     async def __call__(self, *args, **kwargs):
         status = await self.__trigger(self.__pipe)
+        self.finished()
 
         return status
 
@@ -85,7 +86,7 @@ class CommandManager:
 
         async def schedule_pipeline_trigger():
             while True:
-                for name, trigger in self.__handler.items():
+                for _, trigger in self.__handler.items():
                     if len(trigger.queue) > 0:
                         trigger.event.set()
 
@@ -96,9 +97,10 @@ class CommandManager:
                 command_pipe = await read_model(self.__websocket, CommandPipeline)
 
                 if trigger := self.__handler.get(command_pipe.command):
-                    trigger.queue.append(command_pipe.data)
+                    if not trigger.finished:
+                        trigger.queue.append(command_pipe.data)
 
-        for task_name, trigger in self.__handler.items():
+        for _, trigger in self.__handler.items():
             all_tasks.append(asyncio.create_task(trigger()))
 
         all_tasks.append(asyncio.create_task(schedule_pipeline_trigger()))
