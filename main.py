@@ -65,11 +65,11 @@ async def pipeline_demo_auth(websocket: WebSocket, pipeline: DependPipelineSessi
     async def credentials(pipeline: PipelineBuffer):
         await pipeline.send(f"Waiting credentials...")
 
-        data = await pipeline.receive()
+        req = await pipeline.receive()
 
         event_auth_credential.set()
 
-        await pipeline.send(f"Credentials received: {data}")
+        await pipeline.send(f"Credentials received: {req.data}")
 
     async def task_a(pipeline: PipelineBuffer):
         await event_auth_credential.wait()
@@ -77,22 +77,21 @@ async def pipeline_demo_auth(websocket: WebSocket, pipeline: DependPipelineSessi
 
         while True:
             echo = await pipeline.receive()
-            await pipeline.send(f"<<A>>: {echo}")
+            await pipeline.send(f"<<A>>: {echo.data}")
 
     async def task_b(pipeline: PipelineBuffer):
         await event_auth_credential.wait()
-        await websocket.send_text("Hello World from B!")
+        await pipeline.send("Hello World from B!")
 
         while True:
             echo = await pipeline.receive()
-            await pipeline.send(f"<<B>>: {echo}")
+            await pipeline.send(f"<<B>>: {echo.data}")
 
             await asyncio.sleep(3)
 
 
     async with pipeline.session(websocket) as session:
         session.add("credentials", credentials)
-
         session.add("A", task_a)
         session.add("B", task_b)
 

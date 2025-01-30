@@ -56,6 +56,7 @@ class TriggerTask:
     async def __call__(self, *args, **kwargs):
         self.__running = True
         status = await self.__trigger(self.__pipe)
+
         self.finished()
 
         return status
