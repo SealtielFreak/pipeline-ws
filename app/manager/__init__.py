@@ -42,6 +42,8 @@ class PipelineSession:
                     status=StatusQuery.FAILURE
                 )
 
+                raise e
+
         except WebSocketDisconnect:
             await websocket.close()
         else:
