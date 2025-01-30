@@ -71,8 +71,6 @@ async def pipeline_demo_auth(websocket: WebSocket, pipeline: DependPipelineSessi
 
         await pipeline.send(f"Credentials received: {data}")
 
-        return True
-
     async def task_a(pipeline: PipelineBuffer):
         await event_auth_credential.wait()
         await pipeline.send(f"Hello World from A!")

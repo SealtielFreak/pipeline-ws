@@ -35,6 +35,7 @@ class TriggerTask:
         self.__handler_name = name
         self.__trigger = trigger
         self.__finished = False
+        self.__running = True
 
         self.event = asyncio.Event()
         self.queue = collections.deque()
@@ -48,7 +49,12 @@ class TriggerTask:
     def is_finished(self):
         return self.__finished
 
+    @property
+    def is_running(self):
+        return self.__running
+
     async def __call__(self, *args, **kwargs):
+        self.__running = True
         status = await self.__trigger(self.__pipe)
         self.finished()
 
@@ -59,6 +65,7 @@ class TriggerTask:
 
     def finished(self):
         self.__finished = True
+        self.__running = False
 
 
 class CommandManager:
@@ -97,7 +104,7 @@ class CommandManager:
                 command_pipe = await read_model(self.__websocket, CommandPipeline)
 
                 if trigger := self.__handler.get(command_pipe.command):
-                    if not trigger.finished:
+                    if trigger.is_running:
                         trigger.queue.append(command_pipe.data)
 
         for _, trigger in self.__handler.items():
