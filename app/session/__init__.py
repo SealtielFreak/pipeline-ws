@@ -41,7 +41,6 @@ class PipelineSession:
                     details="Maybe something went wrong.",
                     status=StatusQuery.FAILURE
                 )
-                raise e
 
         except WebSocketDisconnect:
             await websocket.close()
